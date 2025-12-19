@@ -45,18 +45,19 @@ export class RedisAdapter extends DatabaseAdapter {
   async executeQuery(query: string, _params?: any[], limit: number = Config.MAX_ROWS): Promise<QueryResult[]> {
     await this.connect();
 
-    // 鐟欙絾鐎介崨鎴掓姢: "COMMAND arg1 arg2 ..."
+    // 解析命令: "COMMAND arg1 arg2 ..."
     const parts = query.trim().split(/\s+/);
     const command = parts[0].toUpperCase();
     const args = parts.slice(1);
 
-    // 鐎瑰鍙忔宀冪槈
+    // 安全验证
     const validation = Config.validateRedisCommand(command);
     if (!validation.valid) {
       throw new Error(validation.error);
     }
 
-    // 閹笛嗩攽閸涙垝鎶?    const result = await (this.client as any).call(command, ...args);
+    // 执行命令
+    const result = await (this.client as any).call(command, ...args);
     
     return this.formatResult(command, result, limit);
   }
@@ -126,7 +127,7 @@ export class RedisAdapter extends DatabaseAdapter {
       { name: 'ttl', type: ttl >= 0 ? `${ttl}s` : 'no expiry' }
     ];
 
-    // 閺嶈宓佺猾璇茬€烽懢宄板絿闁劌鍨庨崘鍛啇
+    // 根据类型获取部分内容
     if (keyType === 'string') {
       const value = await this.client!.get(keyName);
       result.push({ name: 'value', type: value || '' });

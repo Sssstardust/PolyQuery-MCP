@@ -43,16 +43,17 @@ export class MongoDBAdapter extends DatabaseAdapter {
   async executeQuery(query: string, _params?: any[], limit: number = Config.MAX_ROWS): Promise<QueryResult[]> {
     await this.connect();
 
-    // 鐟欙絾鐎?JSON 閺屻儴顕?    let queryObj: any;
+    // 解析 JSON 查询
+    let queryObj: any;
     try {
       queryObj = JSON.parse(query);
     } catch {
-      throw new Error('MongoDB 閺屻儴顕楄箛鍛淬€忛弰顖涙箒閺佸牏娈?JSON 閺嶇厧绱?);
+      throw new Error('MongoDB 查询必须是有效的 JSON 格式');
     }
 
     const collectionName = queryObj.collection;
     if (!collectionName) {
-      throw new Error('韫囧懘銆忛幐鍥х暰 collection');
+      throw new Error('必须指定 collection');
     }
 
     const collection = this.db!.collection(collectionName);
@@ -95,10 +96,10 @@ export class MongoDBAdapter extends DatabaseAdapter {
         break;
 
       default:
-        throw new Error(`娑撳秵鏁幐浣烘畱閹垮秳缍旂猾璇茬€? ${operation}`);
+        throw new Error(`不支持的操作类型: ${operation}`);
     }
 
-    // 鏉烆剚宕?ObjectId 娑撳搫鐡х粭锔胯
+    // 转换 ObjectId 为字符串
     return result.map(doc => this.convertObjectIds(doc));
   }
 
@@ -134,9 +135,10 @@ export class MongoDBAdapter extends DatabaseAdapter {
     await this.connect();
     const collection = this.db!.collection(collectionName);
     
-    // 闁插洦鐗辨稉鈧稉顏呮瀮濡楋絾娼甸幒銊︽焽缂佹挻鐎?    const sample = await collection.findOne();
+    // 采样一个文档来推断结构
+    const sample = await collection.findOne();
     if (!sample) {
-      return [{ name: 'message', type: '闂嗗棗鎮庢稉铏光敄閿涘本妫ゅ▔鏇熷腹閺傤厾绮ㄩ弸? }];
+      return [{ name: 'message', type: '集合为空，无法推断结构' }];
     }
 
     return Object.entries(sample).map(([key, value]) => ({

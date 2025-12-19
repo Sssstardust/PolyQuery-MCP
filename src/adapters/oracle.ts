@@ -10,8 +10,8 @@ export class OracleAdapter extends DatabaseAdapter {
   constructor(config: DatabaseConfig) {
     super();
     this.config = config;
-    // 娴ｈ法鏁?Thin 濡€崇础閿涘奔绗夐棁鈧憰浣界殶閻?initOracleClient()
-    // oracledb 6.x 姒涙顓绘担璺ㄦ暏 Thin 濡€崇础閿涘本妫ら棁鈧?Oracle Client
+    // 使用 Thin 模式，不需要调用 initOracleClient()
+    // oracledb 6.x 默认使用 Thin 模式，无需 Oracle Client
   }
 
   async connect(): Promise<void> {
@@ -49,7 +49,7 @@ export class OracleAdapter extends DatabaseAdapter {
 
     await this.connect();
 
-    // Oracle 娴ｈ法鏁?ROWNUM 闂勬劕鍩楃悰灞炬殶
+    // Oracle 使用 ROWNUM 限制行数
     if (!query.toUpperCase().includes('ROWNUM') && 
         !query.toUpperCase().includes('FETCH') && 
         query.trim().toUpperCase().startsWith('SELECT')) {

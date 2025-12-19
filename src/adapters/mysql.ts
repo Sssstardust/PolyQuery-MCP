@@ -49,7 +49,7 @@ export class MySQLAdapter extends DatabaseAdapter {
 
     await this.connect();
 
-    // 閼奉亜濮╁ǎ璇插 LIMIT
+    // 自动添加 LIMIT
     if (!query.toUpperCase().includes('LIMIT') && query.trim().toUpperCase().startsWith('SELECT')) {
       query = `${query.replace(/;$/, '')} LIMIT ${limit}`;
     }

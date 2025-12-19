@@ -1,18 +1,18 @@
 import { Config } from './config';
 import { DatabaseAdapter } from './adapters/base';
 
-// 闁倿鍘ら崳銊х处鐎涙﹫绱欓崡鏇氱伐濡€崇础閿?
+// 适配器缓存（单例模式）
 const adapterCache: Map<string, DatabaseAdapter> = new Map();
 
 export function getAdapter(dbType: string): DatabaseAdapter {
   const type = dbType.toLowerCase();
   
-  // 濡偓閺屻儳绱︾€?
+  // 检查缓存
   if (adapterCache.has(type)) {
     return adapterCache.get(type)!;
   }
 
-  // 閸掓稑缂撻弬浼粹偓鍌炲帳閸?
+  // 创建新适配器
   const adapter = createAdapter(type);
   adapterCache.set(type, adapter);
   return adapter;
@@ -22,7 +22,7 @@ function createAdapter(dbType: string): DatabaseAdapter {
   switch (dbType) {
     case 'mysql': {
       const config = Config.getMysqlConfig();
-      if (!config) throw new Error('MYSQL_URL 閻滎垰顣ㄩ崣姗€鍣洪張顏堝帳缂?);
+      if (!config) throw new Error('MYSQL_URL 环境变量未配置');
       const { MySQLAdapter } = require('./adapters/mysql');
       return new MySQLAdapter(config);
     }
@@ -30,7 +30,7 @@ function createAdapter(dbType: string): DatabaseAdapter {
     case 'postgres':
     case 'postgresql': {
       const config = Config.getPostgresConfig();
-      if (!config) throw new Error('POSTGRES_URL 閻滎垰顣ㄩ崣姗€鍣洪張顏堝帳缂?);
+      if (!config) throw new Error('POSTGRES_URL 环境变量未配置');
       const { PostgresAdapter } = require('./adapters/postgres');
       return new PostgresAdapter(config);
     }
@@ -38,27 +38,27 @@ function createAdapter(dbType: string): DatabaseAdapter {
     case 'mongodb':
     case 'mongo': {
       const config = Config.getMongodbConfig();
-      if (!config) throw new Error('MONGODB_URL 閻滎垰顣ㄩ崣姗€鍣洪張顏堝帳缂?);
+      if (!config) throw new Error('MONGODB_URL 环境变量未配置');
       const { MongoDBAdapter } = require('./adapters/mongodb');
       return new MongoDBAdapter(config);
     }
 
     case 'redis': {
       const config = Config.getRedisConfig();
-      if (!config) throw new Error('REDIS_URL 閻滎垰顣ㄩ崣姗€鍣洪張顏堝帳缂?);
+      if (!config) throw new Error('REDIS_URL 环境变量未配置');
       const { RedisAdapter } = require('./adapters/redis');
       return new RedisAdapter(config);
     }
 
     case 'oracle': {
       const config = Config.getOracleConfig();
-      if (!config) throw new Error('ORACLE_URL 閻滎垰顣ㄩ崣姗€鍣洪張顏堝帳缂?);
+      if (!config) throw new Error('ORACLE_URL 环境变量未配置');
       const { OracleAdapter } = require('./adapters/oracle');
       return new OracleAdapter(config);
     }
 
     default:
-      throw new Error(`娑撳秵鏁幐浣烘畱閺佺増宓佹惔鎾惰閸? ${dbType}`);
+      throw new Error(`不支持的数据库类型: ${dbType}`);
   }
 }
 

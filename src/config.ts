@@ -11,14 +11,14 @@ export interface DatabaseConfig {
   connectionString?: string;
 }
 
-// 閸楅亶娅?SQL 閸忔娊鏁€涙绱欓崣顏囶嚢濡€崇础娑撳顩﹀顫礆
+// 危险 SQL 关键字（只读模式下禁止）
 const DANGEROUS_KEYWORDS = [
   'INSERT', 'UPDATE', 'DELETE', 'DROP', 'TRUNCATE', 'ALTER',
   'CREATE', 'GRANT', 'REVOKE', 'EXEC', 'EXECUTE', 'MERGE',
   'CALL', 'SHUTDOWN', 'KILL'
 ];
 
-// Redis 閸愭瑥鍙嗛崨鎴掓姢姒涙垵鎮曢崡?
+// Redis 写入命令黑名单
 const REDIS_WRITE_COMMANDS = [
   'SET', 'DEL', 'EXPIRE', 'HSET', 'HDEL', 'LPUSH', 'RPUSH', 'LPOP', 'RPOP',
   'SADD', 'SREM', 'ZADD', 'ZREM', 'FLUSHDB', 'FLUSHALL', 'RENAME', 'COPY',
@@ -26,32 +26,32 @@ const REDIS_WRITE_COMMANDS = [
 ];
 
 export const Config = {
-  // 鐎瑰鍙忛柊宥囩枂
+  // 安全配置
   READ_ONLY_MODE: (process.env.READ_ONLY_MODE || 'true').toLowerCase() === 'true',
   MAX_ROWS: parseInt(process.env.MAX_ROWS || '1000', 10),
   QUERY_TIMEOUT: parseInt(process.env.QUERY_TIMEOUT || '30000', 10),
   LOG_LEVEL: process.env.LOG_LEVEL || 'INFO',
 
-  // 鐟欙絾鐎?MySQL URL
+  // 解析 MySQL URL
   getMysqlConfig(): DatabaseConfig | null {
     const url = process.env.MYSQL_URL;
     if (!url) return null;
     return this.parseSqlUrl(url, 3306);
   },
 
-  // 鐟欙絾鐎?PostgreSQL URL
+  // 解析 PostgreSQL URL
   getPostgresConfig(): DatabaseConfig | null {
     const url = process.env.POSTGRES_URL;
     if (!url) return null;
     return this.parseSqlUrl(url, 5432);
   },
 
-  // 鐟欙絾鐎?MongoDB URL
+  // 解析 MongoDB URL
   getMongodbConfig(): DatabaseConfig | null {
     const url = process.env.MONGODB_URL;
     if (!url) return null;
     
-    // MongoDB 閻╁瓨甯存担璺ㄦ暏鏉╃偞甯寸€涙顑佹稉?
+    // MongoDB 直接使用连接字符串
     try {
       const parsed = new URL(url);
       return {
@@ -67,29 +67,30 @@ export const Config = {
     }
   },
 
-  // 鐟欙絾鐎?Redis URL
+  // 解析 Redis URL
   getRedisConfig(): DatabaseConfig | null {
     const url = process.env.REDIS_URL;
     if (!url) return null;
     
-    // 閹靛濮╃憴锝嗙€?Redis URL閿涘本鏁幐浣哥槕閻椒鑵戦惃鍕濞堝﹤鐡х粭锔肩礄婵?#閿?
-    // 閺嶇厧绱? redis://:password@host:port/db 閹?redis://host:port/db
+    // 手动解析 Redis URL，支持密码中的特殊字符（如 #）
+    // 格式: redis://:password@host:port/db 或 redis://host:port/db
     try {
-      // 缁夊娅庨崡蹇氼唴閸撳秶绱?      let remaining = url.replace(/^redis:\/\//, '');
+      // 移除协议前缀
+      let remaining = url.replace(/^redis:\/\//, '');
       
       let password: string | undefined;
       let host: string;
       let port: number = 6379;
       let database: string = '0';
       
-      // 娴犲骸鎮楀鈧崜宥埿掗弸鎰剁礉閸忓牊澹橀張鈧崥搴濈娑?@ 缁楋箑褰块敍鍫濈槕閻礁褰查懗钘夊瘶閸?@閿?
+      // 从后往前解析，先找最后一个 @ 符号（密码可能包含 @）
       const atIndex = remaining.lastIndexOf('@');
       if (atIndex !== -1) {
-        // 閺堝顓荤拠浣蜂繆閹?
+        // 有认证信息
         const authPart = remaining.substring(0, atIndex);
         remaining = remaining.substring(atIndex + 1);
         
-        // 鐠併倛鐦夐弽鐓庣础: :password 閹?user:password
+        // 认证格式: :password 或 user:password
         if (authPart.startsWith(':')) {
           password = authPart.substring(1);
         } else {
@@ -100,7 +101,7 @@ export const Config = {
         }
       }
       
-      // 鐟欙絾鐎?host:port/db
+      // 解析 host:port/db
       const slashIndex = remaining.indexOf('/');
       if (slashIndex !== -1) {
         database = remaining.substring(slashIndex + 1) || '0';
@@ -121,7 +122,7 @@ export const Config = {
     }
   },
 
-  // 鐟欙絾鐎?Oracle URL
+  // 解析 Oracle URL
   getOracleConfig(): DatabaseConfig | null {
     const url = process.env.ORACLE_URL;
     if (!url) return null;
@@ -140,7 +141,8 @@ export const Config = {
     return null;
   },
 
-  // 闁氨鏁?SQL URL 鐟欙絾鐎?  parseSqlUrl(url: string, defaultPort: number): DatabaseConfig | null {
+  // 通用 SQL URL 解析
+  parseSqlUrl(url: string, defaultPort: number): DatabaseConfig | null {
     try {
       const parsed = new URL(url);
       return {
@@ -155,13 +157,13 @@ export const Config = {
     }
   },
 
-  // 妤犲矁鐦?SQL 閺屻儴顕楃€瑰鍙忛幀?
+  // 验证 SQL 查询安全性
   validateSqlQuery(query: string): { valid: boolean; error?: string } {
     if (!this.READ_ONLY_MODE) {
       return { valid: true };
     }
 
-    // 缁夊娅庡▔銊╁櫞
+    // 移除注释
     let cleanQuery = query.replace(/--.*$/gm, '');
     cleanQuery = cleanQuery.replace(/\/\*[\s\S]*?\*\//g, '');
     cleanQuery = cleanQuery.trim().toUpperCase();
@@ -169,30 +171,31 @@ export const Config = {
     for (const keyword of DANGEROUS_KEYWORDS) {
       const regex = new RegExp(`\\b${keyword}\\b`);
       if (regex.test(cleanQuery)) {
-        return { valid: false, error: `閸欘亣顕板Ο鈥崇础娑撳顩﹀顫▏閻?${keyword} 鐠囶厼褰瀈 };
+        return { valid: false, error: `只读模式下禁止使用 ${keyword} 语句` };
       }
     }
 
     return { valid: true };
   },
 
-  // 妤犲矁鐦?Redis 閸涙垝鎶ょ€瑰鍙忛幀?
+  // 验证 Redis 命令安全性
   validateRedisCommand(command: string): { valid: boolean; error?: string } {
     if (!this.READ_ONLY_MODE) {
       return { valid: true };
     }
 
     if (REDIS_WRITE_COMMANDS.includes(command.toUpperCase())) {
-      return { valid: false, error: `閸欘亣顕板Ο鈥崇础娑撳顩﹀顫▏閻?${command} 閸涙垝鎶 };
+      return { valid: false, error: `只读模式下禁止使用 ${command} 命令` };
     }
 
     return { valid: true };
   },
 
-  // 妤犲矁鐦夐弽鍥槕缁楋讣绱欑悰銊ユ倳閵嗕够chema閸氬稄绱?  validateIdentifier(name: string): string {
+  // 验证标识符（表名、schema名）
+  validateIdentifier(name: string): string {
     if (!name) return name;
     if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name)) {
-      throw new Error(`閺冪姵鏅ラ惃鍕垼鐠囧棛顑? ${name}`);
+      throw new Error(`无效的标识符: ${name}`);
     }
     return name;
   }

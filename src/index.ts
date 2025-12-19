@@ -10,31 +10,32 @@ import {
 import { Config } from './config';
 import { getAdapter, listConfiguredDatabases, closeAllAdapters } from './factory';
 
-// 閸掓稑缂?MCP Server
+// 创建 MCP Server
 const server = new Server(
   { name: 'polyquery-mcp', version: '1.0.0' },
   { capabilities: { tools: {} } }
 );
 
-// 瀹搞儱鍙跨€规矮绠?const tools: Tool[] = [
+// 工具定义
+const tools: Tool[] = [
   {
     name: 'query_database',
-    description: '閹笛嗩攽閺佺増宓佹惔鎾寸叀鐠囶潿鈧總QL閺佺増宓佹惔鎾茬炊SQL鐠囶厼褰為敍瀛ngoDB娴肩嚒SON閺屻儴顕楅敍瀛痚dis娴肩姴鎳℃禒銈呯摟缁楋缚瑕?,
+    description: '执行数据库查询。SQL数据库传SQL语句，MongoDB传JSON查询，Redis传命令字符串',
     inputSchema: {
       type: 'object',
       properties: {
         db_type: {
           type: 'string',
           enum: ['mysql', 'postgres', 'mongodb', 'redis', 'oracle'],
-          description: '閺佺増宓佹惔鎾惰閸?
+          description: '数据库类型'
         },
         query: {
           type: 'string',
-          description: '閺屻儴顕楃拠顓炲綖閵嗕總QL/Redis閸涙垝鎶?MongoDB JSON'
+          description: '查询语句。SQL/Redis命令/MongoDB JSON'
         },
         limit: {
           type: 'number',
-          description: `鏉╂柨娲栫悰灞炬殶闂勬劕鍩楅敍宀勭帛鐠?{Config.MAX_ROWS}`,
+          description: `返回行数限制，默认${Config.MAX_ROWS}`,
           default: Config.MAX_ROWS
         }
       },
@@ -43,14 +44,14 @@ const server = new Server(
   },
   {
     name: 'list_tables',
-    description: '閸掓鍤弫鐗堝祦鎼存挷鑵戦惃鍕閺堝銆?闂嗗棗鎮?,
+    description: '列出数据库中的所有表/集合',
     inputSchema: {
       type: 'object',
       properties: {
         db_type: {
           type: 'string',
           enum: ['mysql', 'postgres', 'mongodb', 'redis', 'oracle'],
-          description: '閺佺増宓佹惔鎾惰閸?
+          description: '数据库类型'
         }
       },
       required: ['db_type']
@@ -58,22 +59,22 @@ const server = new Server(
   },
   {
     name: 'describe_table',
-    description: '閼惧嘲褰囩悰?闂嗗棗鎮庨惃鍕波閺嬪嫪淇婇幁?,
+    description: '获取表/集合的结构信息',
     inputSchema: {
       type: 'object',
       properties: {
         db_type: {
           type: 'string',
           enum: ['mysql', 'postgres', 'mongodb', 'redis', 'oracle'],
-          description: '閺佺増宓佹惔鎾惰閸?
+          description: '数据库类型'
         },
         table_name: {
           type: 'string',
-          description: '鐞涖劌鎮?闂嗗棗鎮庨崥?Redis key'
+          description: '表名/集合名/Redis key'
         },
         schema_name: {
           type: 'string',
-          description: 'Schema閸氬稄绱欓崣顖炩偓澶涚礆'
+          description: 'Schema名（可选）'
         }
       },
       required: ['db_type', 'table_name']
@@ -81,14 +82,14 @@ const server = new Server(
   },
   {
     name: 'test_connection',
-    description: '濞村鐦弫鐗堝祦鎼存捁绻涢幒?,
+    description: '测试数据库连接',
     inputSchema: {
       type: 'object',
       properties: {
         db_type: {
           type: 'string',
           enum: ['mysql', 'postgres', 'mongodb', 'redis', 'oracle'],
-          description: '閺佺増宓佹惔鎾惰閸?
+          description: '数据库类型'
         }
       },
       required: ['db_type']
@@ -96,7 +97,7 @@ const server = new Server(
   },
   {
     name: 'list_databases',
-    description: '閸掓鍤幍鈧張澶婂嚒闁板秶鐤嗛惃鍕殶閹诡喖绨遍崣濠勫Ц閹?,
+    description: '列出所有已配置的数据库及状态',
     inputSchema: {
       type: 'object',
       properties: {}
@@ -104,12 +105,12 @@ const server = new Server(
   }
 ];
 
-// 濞夈劌鍞藉銉ュ徔閸掓銆冩径鍕倞閸?
+// 注册工具列表处理器
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools
 }));
 
-// 濞夈劌鍞藉銉ュ徔鐠嬪啰鏁ゆ径鍕倞閸?
+// 注册工具调用处理器
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args = {} } = request.params;
 
@@ -183,7 +184,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       default:
-        throw new Error(`閺堫亞鐓″銉ュ徔: ${name}`);
+        throw new Error(`未知工具: ${name}`);
     }
 
     return {
@@ -191,7 +192,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     };
 
   } catch (error: any) {
-    // 濞撳懐鎮婇柨娆掝嚖娣団剝浼呮稉顓犳畱閺佸繑鍔呮穱鈩冧紖
+    // 清理错误信息中的敏感信息
     let errorMsg = error.message || String(error);
     errorMsg = errorMsg.replace(/\/\/[^@]+@/g, '//***:***@');
 
@@ -205,14 +206,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   }
 });
 
-// 閸氼垰濮╅張宥呭閸?
+// 启动服务器
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
   console.error(`PolyQuery MCP Server started (read-only: ${Config.READ_ONLY_MODE})`);
 }
 
-// 娴兼﹢娉ら柅鈧崙?
+// 优雅退出
 process.on('SIGINT', async () => {
   await closeAllAdapters();
   process.exit(0);
