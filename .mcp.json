@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "polyquery": {
+      "command": "python",
+      "args": ["-m", "mcp_db.main"],
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      }
+    }
+  }
+}
