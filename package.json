@@ -26,8 +26,16 @@
     "llm",
     "claude"
   ],
-  "author": "",
+  "author": "stardust_08",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Sssstardust/PolyQuery-MCP.git"
+  },
+  "homepage": "https://github.com/Sssstardust/PolyQuery-MCP.git#readme",
+  "bugs": {
+    "url": "https://github.com/Sssstardust/PolyQuery-MCP.git/issues"
+  },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
     "dotenv": "^16.3.1",
