@@ -49,7 +49,15 @@ npm install -g polyquery-mcp
       "command": "npx",
       "args": ["-y", "polyquery-mcp"],
       "env": {
-        "MYSQL_URL": "mysql://user:pass@localhost:3306/mydb"
+        "MYSQL_URL": "mysql://user:pass@localhost:3306/mydb",
+        "POSTGRES_URL": "postgresql://username:password@localhost:5432/database",
+        "MONGODB_URL": "mongodb://username:password@localhost:27017/database",
+        "REDIS_URL": "redis://:password@localhost:6379/0",
+        "ORACLE_URL": "oracle://username:password@localhost:1521/ORCL",
+        "READ_ONLY_MODE": "true",
+        "MAX_ROWS": "1000",
+        "QUERY_TIMEOUT": "30000",
+        "LOG_LEVEL": "INFO"
       }
     }
   }
