@@ -1,6 +1,6 @@
 {
   "name": "polyquery-mcp",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Multi-database query MCP tool supporting PostgreSQL, MySQL, MongoDB, Redis, and Oracle",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
