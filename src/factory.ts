@@ -57,6 +57,13 @@ function createAdapter(dbType: string): DatabaseAdapter {
       return new OracleAdapter(config);
     }
 
+    case 'sqlite': {
+      const config = Config.getSqliteConfig();
+      if (!config) throw new Error('SQLITE_PATH 环境变量未配置');
+      const { SQLiteAdapter } = require('./adapters/sqlite');
+      return new SQLiteAdapter(config);
+    }
+
     default:
       throw new Error(`不支持的数据库类型: ${dbType}`);
   }
@@ -68,7 +75,8 @@ export function listConfiguredDatabases(): Record<string, boolean> {
     postgres: Config.getPostgresConfig() !== null,
     mongodb: Config.getMongodbConfig() !== null,
     redis: Config.getRedisConfig() !== null,
-    oracle: Config.getOracleConfig() !== null
+    oracle: Config.getOracleConfig() !== null,
+    sqlite: Config.getSqliteConfig() !== null
   };
 }
 

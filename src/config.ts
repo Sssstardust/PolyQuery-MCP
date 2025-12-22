@@ -141,6 +141,18 @@ export const Config = {
     return null;
   },
 
+  // 解析 SQLite 路径
+  getSqliteConfig(): DatabaseConfig | null {
+    const path = process.env.SQLITE_PATH;
+    if (!path) return null;
+    
+    return {
+      host: 'localhost',
+      port: 0,
+      database: path  // 文件路径
+    };
+  },
+
   // 通用 SQL URL 解析
   parseSqlUrl(url: string, defaultPort: number): DatabaseConfig | null {
     try {

@@ -16,6 +16,9 @@ const server = new Server(
   { capabilities: { tools: {} } }
 );
 
+// 支持的数据库类型
+const DB_TYPES = ['mysql', 'postgres', 'mongodb', 'redis', 'oracle', 'sqlite'] as const;
+
 // 工具定义
 const tools: Tool[] = [
   {
@@ -26,7 +29,7 @@ const tools: Tool[] = [
       properties: {
         db_type: {
           type: 'string',
-          enum: ['mysql', 'postgres', 'mongodb', 'redis', 'oracle'],
+          enum: DB_TYPES,
           description: '数据库类型'
         },
         query: {
@@ -50,7 +53,7 @@ const tools: Tool[] = [
       properties: {
         db_type: {
           type: 'string',
-          enum: ['mysql', 'postgres', 'mongodb', 'redis', 'oracle'],
+          enum: DB_TYPES,
           description: '数据库类型'
         }
       },
@@ -65,7 +68,7 @@ const tools: Tool[] = [
       properties: {
         db_type: {
           type: 'string',
-          enum: ['mysql', 'postgres', 'mongodb', 'redis', 'oracle'],
+          enum: DB_TYPES,
           description: '数据库类型'
         },
         table_name: {
@@ -88,7 +91,7 @@ const tools: Tool[] = [
       properties: {
         db_type: {
           type: 'string',
-          enum: ['mysql', 'postgres', 'mongodb', 'redis', 'oracle'],
+          enum: DB_TYPES,
           description: '数据库类型'
         }
       },

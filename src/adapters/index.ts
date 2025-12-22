@@ -4,3 +4,4 @@ export { PostgresAdapter } from './postgres';
 export { MongoDBAdapter } from './mongodb';
 export { RedisAdapter } from './redis';
 export { OracleAdapter } from './oracle';
+export { SQLiteAdapter } from './sqlite';
