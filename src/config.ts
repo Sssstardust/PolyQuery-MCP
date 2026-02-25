@@ -32,26 +32,108 @@ export const Config = {
   QUERY_TIMEOUT: parseInt(process.env.QUERY_TIMEOUT || '30000', 10),
   LOG_LEVEL: process.env.LOG_LEVEL || 'INFO',
 
-  // 解析 MySQL URL
-  getMysqlConfig(): DatabaseConfig | null {
-    const url = process.env.MYSQL_URL;
-    if (!url) return null;
-    return this.parseSqlUrl(url, 3306);
+  // 解析 MySQL 多数据源配置
+  getMysqlConfigs(): Record<string, DatabaseConfig> | null {
+    return this.parseMultiConfigs('MYSQL_CONFIGS', 3306, 'mysql');
   },
 
-  // 解析 PostgreSQL URL
-  getPostgresConfig(): DatabaseConfig | null {
-    const url = process.env.POSTGRES_URL;
-    if (!url) return null;
-    return this.parseSqlUrl(url, 5432);
+  // 解析 PostgreSQL 多数据源配置
+  getPostgresConfigs(): Record<string, DatabaseConfig> | null {
+    return this.parseMultiConfigs('POSTGRES_CONFIGS', 5432, 'postgresql');
+  },
+
+  // 解析 MongoDB 多数据源配置
+  getMongodbConfigs(): Record<string, DatabaseConfig> | null {
+    const multiConfigs = this.parseJsonConfigs('MONGODB_CONFIGS');
+    if (!multiConfigs) return null;
+
+    const result: Record<string, DatabaseConfig> = {};
+    for (const [name, url] of Object.entries(multiConfigs)) {
+      const config = this.parseMongodbUrl(url as string);
+      if (config) result[name] = config;
+    }
+    return Object.keys(result).length > 0 ? result : null;
+  },
+
+  // 解析 Redis 多数据源配置
+  getRedisConfigs(): Record<string, DatabaseConfig> | null {
+    const multiConfigs = this.parseJsonConfigs('REDIS_CONFIGS');
+    if (!multiConfigs) return null;
+
+    const result: Record<string, DatabaseConfig> = {};
+    for (const [name, url] of Object.entries(multiConfigs)) {
+      const config = this.parseRedisUrl(url as string);
+      if (config) result[name] = config;
+    }
+    return Object.keys(result).length > 0 ? result : null;
+  },
+
+  // 解析 Oracle 多数据源配置
+  getOracleConfigs(): Record<string, DatabaseConfig> | null {
+    const multiConfigs = this.parseJsonConfigs('ORACLE_CONFIGS');
+    if (!multiConfigs) return null;
+
+    const result: Record<string, DatabaseConfig> = {};
+    for (const [name, url] of Object.entries(multiConfigs)) {
+      const config = this.parseOracleUrl(url as string);
+      if (config) result[name] = config;
+    }
+    return Object.keys(result).length > 0 ? result : null;
+  },
+
+  // 解析 SQLite 多数据源配置
+  getSqliteConfigs(): Record<string, DatabaseConfig> | null {
+    const multiConfigs = this.parseJsonConfigs('SQLITE_CONFIGS');
+    if (!multiConfigs) return null;
+
+    const result: Record<string, DatabaseConfig> = {};
+    for (const [name, path] of Object.entries(multiConfigs)) {
+      result[name] = {
+        host: 'localhost',
+        port: 0,
+        database: path as string
+      };
+    }
+    return Object.keys(result).length > 0 ? result : null;
+  },
+
+  // 通用多数据源配置解析
+  parseMultiConfigs(
+    multiConfigKey: string,
+    defaultPort: number,
+    dbType: string
+  ): Record<string, DatabaseConfig> | null {
+    const multiConfigs = this.parseJsonConfigs(multiConfigKey);
+    if (!multiConfigs) return null;
+
+    const result: Record<string, DatabaseConfig> = {};
+    for (const [name, url] of Object.entries(multiConfigs)) {
+      const config = this.parseSqlUrl(url as string, defaultPort);
+      if (config) result[name] = config;
+    }
+    return Object.keys(result).length > 0 ? result : null;
+  },
+
+  // 解析 JSON 配置字符串
+  parseJsonConfigs(envKey: string): Record<string, string> | null {
+    const jsonStr = process.env[envKey];
+    if (!jsonStr) return null;
+
+    try {
+      const parsed = JSON.parse(jsonStr);
+      if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
+        return parsed as Record<string, string>;
+      }
+      console.error(`${envKey} 必须是对象格式`);
+      return null;
+    } catch {
+      console.error(`解析 ${envKey} 失败，请检查 JSON 格式`);
+      return null;
+    }
   },
 
   // 解析 MongoDB URL
-  getMongodbConfig(): DatabaseConfig | null {
-    const url = process.env.MONGODB_URL;
-    if (!url) return null;
-    
-    // MongoDB 直接使用连接字符串
+  parseMongodbUrl(url: string): DatabaseConfig | null {
     try {
       const parsed = new URL(url);
       return {
@@ -68,28 +150,25 @@ export const Config = {
   },
 
   // 解析 Redis URL
-  getRedisConfig(): DatabaseConfig | null {
-    const url = process.env.REDIS_URL;
-    if (!url) return null;
-    
+  parseRedisUrl(url: string): DatabaseConfig | null {
     // 手动解析 Redis URL，支持密码中的特殊字符（如 #）
     // 格式: redis://:password@host:port/db 或 redis://host:port/db
     try {
       // 移除协议前缀
       let remaining = url.replace(/^redis:\/\//, '');
-      
+
       let password: string | undefined;
       let host: string;
       let port: number = 6379;
       let database: string = '0';
-      
+
       // 从后往前解析，先找最后一个 @ 符号（密码可能包含 @）
       const atIndex = remaining.lastIndexOf('@');
       if (atIndex !== -1) {
         // 有认证信息
         const authPart = remaining.substring(0, atIndex);
         remaining = remaining.substring(atIndex + 1);
-        
+
         // 认证格式: :password 或 user:password
         if (authPart.startsWith(':')) {
           password = authPart.substring(1);
@@ -100,14 +179,14 @@ export const Config = {
           }
         }
       }
-      
+
       // 解析 host:port/db
       const slashIndex = remaining.indexOf('/');
       if (slashIndex !== -1) {
         database = remaining.substring(slashIndex + 1) || '0';
         remaining = remaining.substring(0, slashIndex);
       }
-      
+
       const colonIndex = remaining.lastIndexOf(':');
       if (colonIndex !== -1) {
         host = remaining.substring(0, colonIndex);
@@ -115,18 +194,20 @@ export const Config = {
       } else {
         host = remaining;
       }
-      
-      return { host, port, password, database };
+
+      return {
+        host,
+        port,
+        password: password ? decodeURIComponent(password) : undefined,
+        database
+      };
     } catch {
       return null;
     }
   },
 
   // 解析 Oracle URL
-  getOracleConfig(): DatabaseConfig | null {
-    const url = process.env.ORACLE_URL;
-    if (!url) return null;
-    
+  parseOracleUrl(url: string): DatabaseConfig | null {
     // oracle://user:password@host:port/service
     const match = url.match(/^oracle:\/\/([^:]+):([^@]+)@([^:]+):(\d+)\/(.+)$/);
     if (match) {
@@ -139,18 +220,6 @@ export const Config = {
       };
     }
     return null;
-  },
-
-  // 解析 SQLite 路径
-  getSqliteConfig(): DatabaseConfig | null {
-    const path = process.env.SQLITE_PATH;
-    if (!path) return null;
-    
-    return {
-      host: 'localhost',
-      port: 0,
-      database: path  // 文件路径
-    };
   },
 
   // 通用 SQL URL 解析

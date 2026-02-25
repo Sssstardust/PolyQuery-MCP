@@ -12,7 +12,7 @@ import { getAdapter, listConfiguredDatabases, closeAllAdapters } from './factory
 
 // 创建 MCP Server
 const server = new Server(
-  { name: 'polyquery-mcp', version: '1.0.0' },
+  { name: 'polyquery-mcp', version: '1.1.0' },
   { capabilities: { tools: {} } }
 );
 
@@ -31,6 +31,10 @@ const tools: Tool[] = [
           type: 'string',
           enum: DB_TYPES,
           description: '数据库类型'
+        },
+        connection_name: {
+          type: 'string',
+          description: '数据源名称（可选，默认使用 default）。使用 list_databases 查看可用数据源'
         },
         query: {
           type: 'string',
@@ -55,6 +59,10 @@ const tools: Tool[] = [
           type: 'string',
           enum: DB_TYPES,
           description: '数据库类型'
+        },
+        connection_name: {
+          type: 'string',
+          description: '数据源名称（可选，默认使用 default）'
         }
       },
       required: ['db_type']
@@ -70,6 +78,10 @@ const tools: Tool[] = [
           type: 'string',
           enum: DB_TYPES,
           description: '数据库类型'
+        },
+        connection_name: {
+          type: 'string',
+          description: '数据源名称（可选，默认使用 default）'
         },
         table_name: {
           type: 'string',
@@ -93,6 +105,10 @@ const tools: Tool[] = [
           type: 'string',
           enum: DB_TYPES,
           description: '数据库类型'
+        },
+        connection_name: {
+          type: 'string',
+          description: '数据源名称（可选，默认使用 default）'
         }
       },
       required: ['db_type']
@@ -100,7 +116,7 @@ const tools: Tool[] = [
   },
   {
     name: 'list_databases',
-    description: '列出所有已配置的数据库及状态',
+    description: '列出所有已配置的数据库及数据源',
     inputSchema: {
       type: 'object',
       properties: {}
@@ -123,7 +139,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     switch (name) {
       case 'query_database': {
-        const adapter = getAdapter(args.db_type as string);
+        const adapter = getAdapter(args.db_type as string, args.connection_name as string | undefined);
         const data = await adapter.executeQuery(
           args.query as string,
           undefined,
@@ -139,7 +155,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'list_tables': {
-        const adapter = getAdapter(args.db_type as string);
+        const adapter = getAdapter(args.db_type as string, args.connection_name as string | undefined);
         const tables = await adapter.getSchemaInfo();
         result = {
           success: true,
@@ -150,7 +166,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'describe_table': {
-        const adapter = getAdapter(args.db_type as string);
+        const adapter = getAdapter(args.db_type as string, args.connection_name as string | undefined);
         const columns = await adapter.describeTable(
           args.table_name as string,
           args.schema_name as string | undefined
@@ -164,11 +180,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'test_connection': {
-        const adapter = getAdapter(args.db_type as string);
+        const adapter = getAdapter(args.db_type as string, args.connection_name as string | undefined);
         const success = await adapter.testConnection();
         result = {
           success,
           db_type: args.db_type,
+          connection_name: args.connection_name || 'default',
           response_time_ms: Date.now() - startTime
         };
         break;
@@ -178,9 +195,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const configured = listConfiguredDatabases();
         result = {
           success: true,
-          data: Object.entries(configured).map(([type, status]) => ({
+          data: Object.entries(configured).map(([type, info]) => ({
             type,
-            configured: status
+            configured: info.configured,
+            sources: info.sources
           }))
         };
         break;
