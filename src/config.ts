@@ -32,104 +32,88 @@ export const Config = {
   QUERY_TIMEOUT: parseInt(process.env.QUERY_TIMEOUT || '30000', 10),
   LOG_LEVEL: process.env.LOG_LEVEL || 'INFO',
 
-  // 解析 MySQL 多数据源配置
-  getMysqlConfigs(): Record<string, DatabaseConfig> | null {
-    return this.parseMultiConfigs('MYSQL_CONFIGS', 3306, 'mysql');
-  },
+  // 扫描环境变量，按前缀收集所有数据源
+  // 规则: {DB_TYPE}_{name}=连接字符串，第一个 _ 前为 db_type，之后全部为 name
+  // 例: ORACLE_pdc、MYSQL_order_db、SQLITE_main
+  getConfigsByPrefix(prefix: string): Record<string, string> | null {
+    const upper = prefix.toUpperCase() + '_';
+    const result: Record<string, string> = {};
 
-  // 解析 PostgreSQL 多数据源配置
-  getPostgresConfigs(): Record<string, DatabaseConfig> | null {
-    return this.parseMultiConfigs('POSTGRES_CONFIGS', 5432, 'postgresql');
-  },
-
-  // 解析 MongoDB 多数据源配置
-  getMongodbConfigs(): Record<string, DatabaseConfig> | null {
-    const multiConfigs = this.parseJsonConfigs('MONGODB_CONFIGS');
-    if (!multiConfigs) return null;
-
-    const result: Record<string, DatabaseConfig> = {};
-    for (const [name, url] of Object.entries(multiConfigs)) {
-      const config = this.parseMongodbUrl(url as string);
-      if (config) result[name] = config;
-    }
-    return Object.keys(result).length > 0 ? result : null;
-  },
-
-  // 解析 Redis 多数据源配置
-  getRedisConfigs(): Record<string, DatabaseConfig> | null {
-    const multiConfigs = this.parseJsonConfigs('REDIS_CONFIGS');
-    if (!multiConfigs) return null;
-
-    const result: Record<string, DatabaseConfig> = {};
-    for (const [name, url] of Object.entries(multiConfigs)) {
-      const config = this.parseRedisUrl(url as string);
-      if (config) result[name] = config;
-    }
-    return Object.keys(result).length > 0 ? result : null;
-  },
-
-  // 解析 Oracle 多数据源配置
-  getOracleConfigs(): Record<string, DatabaseConfig> | null {
-    const multiConfigs = this.parseJsonConfigs('ORACLE_CONFIGS');
-    if (!multiConfigs) return null;
-
-    const result: Record<string, DatabaseConfig> = {};
-    for (const [name, url] of Object.entries(multiConfigs)) {
-      const config = this.parseOracleUrl(url as string);
-      if (config) result[name] = config;
-    }
-    return Object.keys(result).length > 0 ? result : null;
-  },
-
-  // 解析 SQLite 多数据源配置
-  getSqliteConfigs(): Record<string, DatabaseConfig> | null {
-    const multiConfigs = this.parseJsonConfigs('SQLITE_CONFIGS');
-    if (!multiConfigs) return null;
-
-    const result: Record<string, DatabaseConfig> = {};
-    for (const [name, path] of Object.entries(multiConfigs)) {
-      result[name] = {
-        host: 'localhost',
-        port: 0,
-        database: path as string
-      };
-    }
-    return Object.keys(result).length > 0 ? result : null;
-  },
-
-  // 通用多数据源配置解析
-  parseMultiConfigs(
-    multiConfigKey: string,
-    defaultPort: number,
-    dbType: string
-  ): Record<string, DatabaseConfig> | null {
-    const multiConfigs = this.parseJsonConfigs(multiConfigKey);
-    if (!multiConfigs) return null;
-
-    const result: Record<string, DatabaseConfig> = {};
-    for (const [name, url] of Object.entries(multiConfigs)) {
-      const config = this.parseSqlUrl(url as string, defaultPort);
-      if (config) result[name] = config;
-    }
-    return Object.keys(result).length > 0 ? result : null;
-  },
-
-  // 解析 JSON 配置字符串
-  parseJsonConfigs(envKey: string): Record<string, string> | null {
-    const jsonStr = process.env[envKey];
-    if (!jsonStr) return null;
-
-    try {
-      const parsed = JSON.parse(jsonStr);
-      if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
-        return parsed as Record<string, string>;
+    for (const [key, value] of Object.entries(process.env)) {
+      if (!value) continue;
+      if (key.toUpperCase().startsWith(upper)) {
+        // 截取第一个 _ 后的部分作为 name，统一转小写
+        const name = key.slice(upper.length).toLowerCase();
+        if (name) result[name] = value;
       }
-      console.error(`${envKey} 必须是对象格式`);
-      return null;
-    } catch {
-      console.error(`解析 ${envKey} 失败，请检查 JSON 格式`);
-      return null;
     }
+
+    return Object.keys(result).length > 0 ? result : null;
+  },
+
+  getMysqlConfigs(): Record<string, DatabaseConfig> | null {
+    const envs = this.getConfigsByPrefix('MYSQL');
+    if (!envs) return null;
+    return this.parseUrlMap(envs, 3306);
+  },
+
+  getPostgresConfigs(): Record<string, DatabaseConfig> | null {
+    const envs = this.getConfigsByPrefix('POSTGRES');
+    if (!envs) return null;
+    return this.parseUrlMap(envs, 5432);
+  },
+
+  getMongodbConfigs(): Record<string, DatabaseConfig> | null {
+    const envs = this.getConfigsByPrefix('MONGODB');
+    if (!envs) return null;
+    const result: Record<string, DatabaseConfig> = {};
+    for (const [name, url] of Object.entries(envs)) {
+      const config = this.parseMongodbUrl(url);
+      if (config) result[name] = config;
+    }
+    return Object.keys(result).length > 0 ? result : null;
+  },
+
+  getRedisConfigs(): Record<string, DatabaseConfig> | null {
+    const envs = this.getConfigsByPrefix('REDIS');
+    if (!envs) return null;
+    const result: Record<string, DatabaseConfig> = {};
+    for (const [name, url] of Object.entries(envs)) {
+      const config = this.parseRedisUrl(url);
+      if (config) result[name] = config;
+    }
+    return Object.keys(result).length > 0 ? result : null;
+  },
+
+  getOracleConfigs(): Record<string, DatabaseConfig> | null {
+    const envs = this.getConfigsByPrefix('ORACLE');
+    if (!envs) return null;
+    const result: Record<string, DatabaseConfig> = {};
+    for (const [name, url] of Object.entries(envs)) {
+      const config = this.parseOracleUrl(url);
+      if (config) result[name] = config;
+    }
+    return Object.keys(result).length > 0 ? result : null;
+  },
+
+  getSqliteConfigs(): Record<string, DatabaseConfig> | null {
+    const envs = this.getConfigsByPrefix('SQLITE');
+    if (!envs) return null;
+    const result: Record<string, DatabaseConfig> = {};
+    for (const [name, path] of Object.entries(envs)) {
+      result[name] = { host: 'localhost', port: 0, database: path };
+    }
+    return Object.keys(result).length > 0 ? result : null;
+  },
+
+  // 批量解析 URL map
+  parseUrlMap(envs: Record<string, string>, defaultPort: number): Record<string, DatabaseConfig> | null {
+    const result: Record<string, DatabaseConfig> = {};
+    for (const [name, url] of Object.entries(envs)) {
+      const config = this.parseSqlUrl(url, defaultPort);
+      if (config) result[name] = config;
+    }
+    return Object.keys(result).length > 0 ? result : null;
   },
 
   // 解析 MongoDB URL
@@ -207,15 +191,15 @@ export const Config = {
   },
 
   // 解析 Oracle URL
+  // 格式: oracle://user:password@host:port/service
   parseOracleUrl(url: string): DatabaseConfig | null {
-    // oracle://user:password@host:port/service
     const match = url.match(/^oracle:\/\/([^:]+):([^@]+)@([^:]+):(\d+)\/(.+)$/);
     if (match) {
       return {
         host: match[3],
         port: parseInt(match[4]),
         user: match[1],
-        password: match[2],
+        password: decodeURIComponent(match[2]),
         database: match[5]
       };
     }

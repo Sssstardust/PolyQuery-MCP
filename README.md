@@ -25,35 +25,23 @@ npm install -g polyquery-mcp
 
 ### 配置 MCP 客户端
 
+每个数据源独立一个环境变量，格式为 `{DB_TYPE}_{name}=连接字符串`：
+
 ```json
 {
   "mcpServers": {
     "polyquery": {
       "command": "polyquery-mcp",
       "env": {
-        "MYSQL_CONFIGS": {
-          "primary":"mysql://user:pass@primary-host:3306/main_db",
-          "replica":"mysql://user:pass@replica-host:3306/main_db",
-          "analytics":"mysql://user:pass@analytics-host:3306/report_db"
-        },
-        "POSTGRES_CONFIGS": {
-          "main":"postgresql://user:pass@host:5432/main_db",
-          "archive":"postgresql://user:pass@host:5432/archive_db"
-        },
-        "MONGODB_CONFIGS": {
-          "main":"mongodb://user:pass@host:27017/main_db"
-        },
-        "REDIS_CONFIGS": {
-          "cache":"redis://:pass@host:6379/0",
-          "session":"redis://:pass@host:6379/1"
-        },
-        "ORACLE_CONFIGS": {
-          "main":"oracle://user:pass@host:1521/main_service"
-        },
-        "SQLITE_CONFIGS": {
-          "main":"/path/to/main.db",
-          "archive":"/path/to/archive.db"
-        },
+        "MYSQL_primary": "mysql://user:pass@primary-host:3306/main_db",
+        "MYSQL_replica": "mysql://user:pass@replica-host:3306/main_db",
+        "POSTGRES_main": "postgresql://user:pass@host:5432/main_db",
+        "POSTGRES_archive": "postgresql://user:pass@host:5432/archive_db",
+        "MONGODB_main": "mongodb://user:pass@host:27017/main_db",
+        "REDIS_cache": "redis://:pass@host:6379/0",
+        "REDIS_session": "redis://:pass@host:6379/1",
+        "ORACLE_main": "oracle://user:pass@host:1521/service",
+        "SQLITE_main": "/path/to/main.db",
         "READ_ONLY_MODE": "true",
         "MAX_ROWS": "1000",
         "QUERY_TIMEOUT": "30000"
@@ -72,9 +60,7 @@ npm install -g polyquery-mcp
       "command": "npx",
       "args": ["-y", "polyquery-mcp"],
       "env": {
-        "MYSQL_CONFIGS": {
-          "primary":"mysql://user:pass@host:3306/db"
-        },
+        "MYSQL_primary": "mysql://user:pass@host:3306/db",
         "READ_ONLY_MODE": "true"
       }
     }
@@ -84,18 +70,28 @@ npm install -g polyquery-mcp
 
 ## 📝 配置说明
 
-### 多数据源配置
+### 配置规则
 
-使用 `*_CONFIGS` 环境变量配置多个数据源，值为 JSON 格式：
+每个数据源独立一个环境变量：
 
-| 数据库 | 环境变量 | 示例 |
-|--------|----------|------|
-| MySQL | `MYSQL_CONFIGS` | `{"primary":"mysql://user:pass@host:3306/db","replica":"mysql://user:pass@host:3306/db"}` |
-| PostgreSQL | `POSTGRES_CONFIGS` | `{"main":"postgresql://user:pass@host:5432/db","archive":"postgresql://user:pass@host:5432/archive"}` |
-| MongoDB | `MONGODB_CONFIGS` | `{"main":"mongodb://user:pass@host:27017/db"}` |
-| Redis | `REDIS_CONFIGS` | `{"cache":"redis://:pass@host:6379/0","session":"redis://:pass@host:6379/1"}` |
-| Oracle | `ORACLE_CONFIGS` | `{"main":"oracle://user:pass@host:1521/service"}` |
-| SQLite | `SQLITE_CONFIGS` | `{"main":"/path/to/main.db","archive":"/path/to/archive.db"}` |
+```
+{DB_TYPE}_{name}=连接字符串
+```
+
+- `DB_TYPE` 不区分大小写，统一按小写处理
+- `name` 为自定义数据源名称，第一个 `_` 后的全部内容均为 name（支持 `_`）
+- 例：`MYSQL_primary`、`ORACLE_tob`、`MYSQL_order_db`
+
+| 数据库 | 示例变量名 | 连接字符串格式 |
+|--------|-----------|---------------|
+| MySQL | `MYSQL_primary` | `mysql://user:pass@host:3306/db` |
+| PostgreSQL | `POSTGRES_main` | `postgresql://user:pass@host:5432/db` |
+| MongoDB | `MONGODB_main` | `mongodb://user:pass@host:27017/db` |
+| Redis | `REDIS_cache` | `redis://:pass@host:6379/0` |
+| Oracle | `ORACLE_main` | `oracle://user:pass@host:1521/service` |
+| SQLite | `SQLITE_main` | `/path/to/database.db` |
+
+> 密码中含特殊字符（`$` `!` `#` `^` 等）需 URL 编码，如 `$` → `%24`，`#` → `%23`
 
 ### 安全配置
 
@@ -190,7 +186,8 @@ npm run build
 ```json
 {
   "env": {
-    "MYSQL_CONFIGS": "{\"primary\":\"mysql://write_user:pass@master:3306/app\",\"replica\":\"mysql://read_user:pass@slave:3306/app\"}"
+    "MYSQL_primary": "mysql://write_user:pass@master:3306/app",
+    "MYSQL_replica": "mysql://read_user:pass@slave:3306/app"
   }
 }
 ```
@@ -199,7 +196,9 @@ npm run build
 ```json
 {
   "env": {
-    "POSTGRES_CONFIGS": "{\"orders\":\"postgresql://user:pass@host:5432/orders\",\"users\":\"postgresql://user:pass@host:5432/users\",\"inventory\":\"postgresql://user:pass@host:5432/inventory\"}"
+    "POSTGRES_orders": "postgresql://user:pass@host:5432/orders",
+    "POSTGRES_users": "postgresql://user:pass@host:5432/users",
+    "POSTGRES_inventory": "postgresql://user:pass@host:5432/inventory"
   }
 }
 ```
@@ -208,7 +207,9 @@ npm run build
 ```json
 {
   "env": {
-    "MYSQL_CONFIGS": "{\"dev\":\"mysql://user:pass@dev-host:3306/app\",\"test\":\"mysql://user:pass@test-host:3306/app\",\"prod\":\"mysql://user:pass@prod-host:3306/app\"}"
+    "MYSQL_dev": "mysql://user:pass@dev-host:3306/app",
+    "MYSQL_test": "mysql://user:pass@test-host:3306/app",
+    "MYSQL_prod": "mysql://user:pass@prod-host:3306/app"
   }
 }
 ```
@@ -217,7 +218,19 @@ npm run build
 ```json
 {
   "env": {
-    "REDIS_CONFIGS": "{\"cache\":\"redis://:pass@host:6379/0\",\"session\":\"redis://:pass@host:6379/1\",\"queue\":\"redis://:pass@host:6379/2\"}"
+    "REDIS_cache": "redis://:pass@host:6379/0",
+    "REDIS_session": "redis://:pass@host:6379/1",
+    "REDIS_queue": "redis://:pass@host:6379/2"
+  }
+}
+```
+
+### 场景 5：密码含特殊字符
+密码中的特殊字符需 URL 编码：`$` → `%24`，`#` → `%23`，`!` → `%21`，`^` → `%5E`
+```json
+{
+  "env": {
+    "ORACLE_prod": "oracle://scott:P%40ss%24w0rd%21@host:1521/pdb1"
   }
 }
 ```
